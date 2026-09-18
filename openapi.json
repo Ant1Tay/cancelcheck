@@ -80,7 +80,7 @@
             "description": "Invalid request"
           },
           "402": {
-            "description": "Payment required. This endpoint is protected by x402 and requires a 0.001 USDC payment on Base Sepolia."
+            "description": "Payment required. This endpoint is protected by x402 and requires a 0.001 USDC payment on Base mainnet."
           }
         }
       }
@@ -135,7 +135,7 @@
               "boolean",
               "null"
             ],
-            "description": "Whether cancellation is currently described as free of charge."
+            "description": "Whether cancellation is described as free of charge."
           },
           "deadline": {
             "$ref": "#/components/schemas/Deadline"
