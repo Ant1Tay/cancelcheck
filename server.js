@@ -3,13 +3,14 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const VERSION = "0.3.0";
 
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     service: "CancelCheck",
-    version: "0.2.0"
+    version: VERSION
   });
 });
 
@@ -26,58 +27,78 @@ app.post("/parse", (req, res) => {
 
   let refundable = null;
   let freeCancellation = null;
-  let cancellationType = null;
-  let cancellationAmount = null;
-  let cancellationPercentage = null;
+
   let deadlineDate = null;
   let deadlineTime = null;
   let deadlineHoursBefore = null;
+
+  let cancellationType = null;
+  let cancellationAmount = null;
+  let cancellationCurrency = null;
+  let cancellationPercentage = null;
+  let cancellationBasis = null;
+
   let noShowType = null;
 
-  // -------------------------
-  // Refundability
-  // -------------------------
+  // --------------------------------
+  // REFUNDABILITY
+  // --------------------------------
 
-  if (
+  const nonRefundable =
     text.includes("non-refundable") ||
-    text.includes("non refundable")
-  ) {
+    text.includes("non refundable");
+
+  const freeCancellationLanguage =
+    text.includes("free cancellation") ||
+    text.includes("cancel free of charge") ||
+    text.includes("cancelled free of charge") ||
+    text.includes("canceled free of charge") ||
+    text.includes("cancel without charge") ||
+    text.includes("cancel without penalty");
+
+  if (nonRefundable) {
     refundable = false;
     freeCancellation = false;
-  }
-
-  if (text.includes("free cancellation")) {
+  } else if (freeCancellationLanguage) {
     refundable = true;
     freeCancellation = true;
   }
 
-  // -------------------------
-  // Deadline: hours before
-  // -------------------------
+  // --------------------------------
+  // RELATIVE DEADLINE
+  // --------------------------------
 
   const hoursMatch = text.match(
-    /(\d+)\s*hours?\s+before/
+    /(\d+)\s*hours?\s+(?:prior to|before)/
   );
 
   if (hoursMatch) {
     deadlineHoursBefore = Number(hoursMatch[1]);
   }
 
-  // -------------------------
-  // Deadline: date
-  // -------------------------
+  const daysMatch = text.match(
+    /(\d+)\s*days?\s+(?:prior to|before)/
+  );
+
+  if (daysMatch && deadlineHoursBefore === null) {
+    deadlineHoursBefore = Number(daysMatch[1]) * 24;
+  }
+
+  // --------------------------------
+  // DATE
+  // --------------------------------
 
   const dateMatch = policy_text.match(
-    /(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)/i
+    /(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)/i
   );
 
   if (dateMatch) {
     deadlineDate = `${dateMatch[1]} ${dateMatch[2]}`;
   }
 
-  // -------------------------
-  // Deadline: time
-  // -------------------------
+  // --------------------------------
+  // TIME
+  // --------------------------------
 
   const timeMatch = text.match(
     /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/
@@ -100,9 +121,9 @@ app.post("/parse", (req, res) => {
       `${String(hour).padStart(2, "0")}:${minutes}`;
   }
 
-  // -------------------------
-  // Cancellation charge
-  // -------------------------
+  // --------------------------------
+  // LATE CANCELLATION CHARGE
+  // --------------------------------
 
   if (
     text.includes("first night") ||
@@ -111,7 +132,9 @@ app.post("/parse", (req, res) => {
     cancellationType = "first_night";
   }
 
-  const percentageMatch = text.match(/(\d+)\s*%/);
+  const percentageMatch = text.match(
+    /(\d+(?:\.\d+)?)\s*%/
+  );
 
   if (percentageMatch) {
     cancellationType = "percentage";
@@ -119,27 +142,52 @@ app.post("/parse", (req, res) => {
   }
 
   const moneyMatch = policy_text.match(
-    /[£$€]\s?(\d+(?:\.\d{1,2})?)/
+    /(£|\$|€)\s?(\d+(?:\.\d{1,2})?)/
   );
 
   if (moneyMatch) {
     cancellationType = "fixed_amount";
-    cancellationAmount = Number(moneyMatch[1]);
+    cancellationAmount = Number(moneyMatch[2]);
+
+    const symbol = moneyMatch[1];
+
+    if (symbol === "£") cancellationCurrency = "GBP";
+    if (symbol === "$") cancellationCurrency = "USD";
+    if (symbol === "€") cancellationCurrency = "EUR";
   }
 
-  // -------------------------
-  // No-show
-  // -------------------------
-
   if (
+    text.includes("per guest") ||
+    text.includes("per person")
+  ) {
+    cancellationBasis = "per_guest";
+  } else if (
+    text.includes("per room")
+  ) {
+    cancellationBasis = "per_room";
+  } else if (
+    text.includes("per booking") ||
+    text.includes("per reservation")
+  ) {
+    cancellationBasis = "per_booking";
+  }
+
+  // --------------------------------
+  // NO SHOW
+  // --------------------------------
+
+  const mentionsNoShow =
     text.includes("no-show") ||
     text.includes("no show") ||
-    text.includes("no-shows")
-  ) {
+    text.includes("no-shows") ||
+    text.includes("no shows");
+
+  if (mentionsNoShow) {
     if (
       text.includes("full booking") ||
       text.includes("full reservation") ||
-      text.includes("full amount")
+      text.includes("full amount") ||
+      text.includes("100%")
     ) {
       noShowType = "full_booking";
     } else {
@@ -147,23 +195,28 @@ app.post("/parse", (req, res) => {
     }
   }
 
-  // -------------------------
-  // Confidence
-  // -------------------------
+  // --------------------------------
+  // CONFIDENCE
+  // --------------------------------
 
   let confidence = 0.5;
 
   if (refundable !== null) confidence += 0.1;
   if (deadlineDate) confidence += 0.1;
   if (deadlineTime) confidence += 0.1;
-  if (deadlineHoursBefore) confidence += 0.1;
+  if (deadlineHoursBefore !== null) confidence += 0.1;
   if (cancellationType) confidence += 0.1;
 
   confidence = Math.min(confidence, 0.95);
+  confidence = Math.round(confidence * 100) / 100;
+
+  // --------------------------------
+  // RESPONSE
+  // --------------------------------
 
   res.json({
     service: "CancelCheck",
-    version: "0.2.0",
+    version: VERSION,
 
     refundable,
     free_cancellation: freeCancellation,
@@ -177,7 +230,9 @@ app.post("/parse", (req, res) => {
     late_cancellation: {
       type: cancellationType,
       amount: cancellationAmount,
-      percentage: cancellationPercentage
+      currency: cancellationCurrency,
+      percentage: cancellationPercentage,
+      basis: cancellationBasis
     },
 
     no_show: {
@@ -185,13 +240,12 @@ app.post("/parse", (req, res) => {
     },
 
     confidence,
-
     original_policy: policy_text
   });
 });
 
 app.listen(PORT, () => {
   console.log(
-    `CancelCheck v0.2 is running at http://localhost:${PORT}`
+    `CancelCheck v${VERSION} is running at http://localhost:${PORT}`
   );
 });
