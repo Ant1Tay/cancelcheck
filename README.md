@@ -8,7 +8,7 @@ Turn messy cancellation, refund, booking and no-show policies into structured, m
 
 [![API](https://img.shields.io/badge/API-Live-success)](https://cancelcheck.onrender.com)
 [![x402](https://img.shields.io/badge/x402-Pay--per--request-blue)](https://x402.org)
-[![Base](https://img.shields.io/badge/Base-Sepolia-0052FF)](https://www.base.org)
+[![Base](https://img.shields.io/badge/Base-Mainnet-0052FF)](https://www.base.org)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-green)](https://cancelcheck.onrender.com/openapi.json)
 [![License](https://img.shields.io/badge/license-ISC-lightgrey)](LICENSE)
 
@@ -16,16 +16,15 @@ Turn messy cancellation, refund, booking and no-show policies into structured, m
 
 ## What is CancelCheck?
 
-AI agents increasingly make decisions on behalf of users:
+AI agents increasingly need to understand questions such as:
 
-- Should I cancel this hotel?
-- Will I get my money back?
+- Is this booking refundable?
 - When does free cancellation end?
-- How much will I be charged if I cancel now?
-- What happens if I don't show up?
-- Is this booking still refundable?
+- What happens if the booking is cancelled late?
+- How much could be charged?
+- What happens in a no-show?
 
-The problem is that these answers are often buried inside inconsistent, human-written policies.
+These answers are often buried inside inconsistent, human-written policies.
 
 **CancelCheck turns those policies into structured data that an agent can reason with.**
 
@@ -39,7 +38,7 @@ Raw cancellation policy
 Structured policy data
           │
           ▼
-   AI agent decision
+   AI agent workflow
 ```
 
 ## Why CancelCheck?
@@ -55,7 +54,7 @@ AI agents need something different:
 - Confidence information
 - The original policy retained for reference
 
-CancelCheck provides that layer between the raw policy and the agent's decision-making process.
+CancelCheck provides a structured interpretation layer between raw policy text and an agent's decision-making process.
 
 ---
 
@@ -92,12 +91,12 @@ CancelCheck provides that layer between the raw policy and the agent's decision-
   "no_show": {
     "type": null
   },
-  "confidence": 0.8,
-  "original_policy": "Free cancellation until 6pm on 24 September."
+  "confidence": 0.9,
+  "original_policy": "Free cancellation until 6pm on 24 September. After this time, the first night will be charged."
 }
 ```
 
-Instead of an agent having to interpret the entire policy itself, it receives structured fields it can use in its own workflow.
+Instead of requiring an agent to interpret the entire policy itself, CancelCheck returns structured fields that can be used directly in an agent workflow.
 
 ---
 
@@ -148,7 +147,7 @@ CancelCheck
   ▼
 Agent
   │
-  │ Pay automatically
+  │ Pay
   ▼
 x402 Facilitator
   │
@@ -161,7 +160,7 @@ CancelCheck
 Agent receives result
 ```
 
-This enables a simple machine-to-machine model:
+This enables a machine-to-machine model:
 
 **Discover → Pay → Use**
 
@@ -170,13 +169,13 @@ This enables a simple machine-to-machine model:
 | Setting | Value |
 |---|---|
 | Protocol | x402 v2 |
-| Network | Base Sepolia |
+| Network | Base mainnet |
 | Asset | USDC |
 | Price | 0.001 USDC |
 | Endpoint | `POST /parse` |
 | Payment model | Per request |
 
-> **Current deployment uses Base Sepolia testnet funds. These payments have no real monetary value.**
+CancelCheck is configured for real USDC payments on Base mainnet.
 
 ---
 
@@ -204,7 +203,9 @@ Without payment, the endpoint returns:
 402 Payment Required
 ```
 
-An x402-compatible client can use the payment requirements to complete the payment and retry the request.
+The x402 v2 payment requirements are supplied in the response headers.
+
+An x402-compatible client can use those requirements to complete payment and retry the request.
 
 ---
 
@@ -313,18 +314,15 @@ The metadata describes:
 - Payment asset
 - Request price
 
-For example, the public `402` response advertises:
+The public payment requirements advertise:
 
 ```text
-POST
-JSON
-policy_text
-Base Sepolia
+POST /parse
+x402 v2
+Base mainnet
 USDC
 0.001 USDC
 ```
-
-along with the structured output schema.
 
 This allows compatible agent infrastructure to understand the service without relying solely on human-written documentation.
 
@@ -494,13 +492,22 @@ Check the service:
 curl http://localhost:3000/health
 ```
 
+Production x402 configuration is supplied through environment variables. Never commit wallet private keys or CDP credentials to the repository.
+
 ---
 
 # Testing
 
-The repository includes a paid-request test client.
+The repository includes parser tests and an x402 paid-request test client.
 
-The test flow demonstrates:
+Parser tests can be run with:
+
+```bash
+npm test
+npm run test:hard
+```
+
+The paid-request flow is:
 
 ```text
 POST /parse
@@ -518,12 +525,9 @@ x402 payment
      200
 ```
 
-The current test environment uses:
+A paid request was previously tested successfully using Base Sepolia.
 
-- Base Sepolia
-- Testnet ETH
-- Testnet USDC
-- x402 automatic payment handling
+The production API is now configured for Base mainnet. Its public x402 payment requirements have been verified, but a real Base mainnet payment and settlement has not yet been completed end-to-end.
 
 Private test credentials should remain in local environment files and must never be committed to Git.
 
@@ -574,13 +578,12 @@ Private test credentials should remain in local environment files and must never
 - [x] REST API
 - [x] OpenAPI 3.1
 - [x] x402 v2 payment protection
-- [x] Base Sepolia support
-- [x] USDC payments
-- [x] Automatic paid-request testing
+- [x] Base mainnet configuration
+- [x] USDC payment requirements
 - [x] Bazaar discovery metadata
 - [x] HTTPS production deployment
-- [x] Public 402 payment flow verified
-- [x] Public paid request verified
+- [x] Public mainnet 402 payment requirements verified
+- [ ] End-to-end Base mainnet payment settlement verified
 
 ---
 
@@ -610,8 +613,7 @@ Private test credentials should remain in local environment files and must never
 
 ## Payments
 
-- [ ] Production payment configuration
-- [ ] Mainnet deployment
+- [ ] Verify first end-to-end Base mainnet payment
 - [ ] Additional networks/assets
 
 ---
