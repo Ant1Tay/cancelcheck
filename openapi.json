@@ -1,0 +1,162 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CancelCheck API",
+    "version": "0.4.1",
+    "description": "Parses cancellation and refund policies into structured data for AI agents and applications."
+  },
+  "servers": [
+    {
+      "url": "https://cancelcheck.onrender.com"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Check service health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "CancelCheck is running"
+          }
+        }
+      }
+    },
+    "/parse": {
+      "post": {
+        "summary": "Parse a cancellation policy",
+        "description": "Extracts refundability, cancellation deadlines, cancellation charges, and no-show terms from cancellation policy text.",
+        "operationId": "parseCancellationPolicy",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policy_text": {
+                    "type": "string",
+                    "description": "The cancellation or refund policy text to analyse."
+                  }
+                },
+                "required": [
+                  "policy_text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured cancellation policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "refundable": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "free_cancellation": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "deadline": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "time": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "hours_before": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "late_cancellation": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "amount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "currency": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "percentage": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "basis": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "no_show": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "type": "number"
+                    },
+                    "original_policy": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          }
+        }
+      }
+    }
+  }
+}

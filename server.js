@@ -5,6 +5,10 @@ const app = express();
 
 app.use(express.json());
 
+app.get("/openapi.json", (req, res) => {
+  res.sendFile("openapi.json", { root: __dirname });
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.get("/health", (req, res) => {
