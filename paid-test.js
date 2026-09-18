@@ -25,7 +25,7 @@ async function main() {
   const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
   const response = await fetchWithPayment(
-    "http://localhost:3000/parse",
+   "https://cancelcheck.onrender.com/parse",
     {
       method: "POST",
       headers: {
