@@ -11,13 +11,27 @@ const { ExactEvmScheme } = require("@x402/evm/exact/server");
 const app = express();
 
 app.use(express.json());
+
+const X402_FACILITATOR_URL =
+  process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator";
+
+const X402_NETWORK =
+  process.env.X402_NETWORK || "eip155:84532";
+
+const X402_PRICE =
+  process.env.X402_PRICE || "$0.001";
+
+const X402_PAY_TO =
+  process.env.X402_PAY_TO ||
+  "0xe9C913235AD4d81699A715Cf3e4cae4Dbb0F2D79";
+
 const facilitatorClient = new HTTPFacilitatorClient({
-  url: "https://x402.org/facilitator"
+  url: X402_FACILITATOR_URL
 });
 
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register(
-    "eip155:84532",
+    X402_NETWORK,
     new ExactEvmScheme()
   );
 
@@ -28,9 +42,9 @@ app.use(
         accepts: [
           {
             scheme: "exact",
-            price: "$0.001",
-            network: "eip155:84532",
-            payTo: "0xe9C913235AD4d81699A715Cf3e4cae4Dbb0F2D79"
+            price: X402_PRICE,
+            network: X402_NETWORK,
+            payTo: X402_PAY_TO
           }
         ],
         description: "Parse a cancellation or refund policy into structured data."
