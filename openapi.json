@@ -16,6 +16,7 @@
       "get": {
         "summary": "Check service health",
         "operationId": "getHealth",
+        "security": [],
         "responses": {
           "200": {
             "description": "CancelCheck is running"
