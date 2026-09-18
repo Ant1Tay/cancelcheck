@@ -4,6 +4,18 @@ const { parsePolicy, VERSION } = require("./parser");
 const app = express();
 
 app.use(express.json());
+app.get("/", (req, res) => {
+  res.json({
+    service: "CancelCheck",
+    version: VERSION,
+    description: "Cancellation and refund policy intelligence for AI agents.",
+    endpoints: {
+      health: "GET /health",
+      parse: "POST /parse",
+      openapi: "GET /openapi.json"
+    }
+  });
+});
 
 app.get("/openapi.json", (req, res) => {
   res.sendFile("openapi.json", { root: __dirname });
