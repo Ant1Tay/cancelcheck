@@ -7,6 +7,10 @@ const {
   x402ResourceServer
 } = require("@x402/core/server");
 const { ExactEvmScheme } = require("@x402/evm/exact/server");
+const {
+  bazaarResourceServerExtension,
+  declareDiscoveryExtension
+} = require("@x402/extensions/bazaar");
 
 const app = express();
 
@@ -33,6 +37,9 @@ const resourceServer = new x402ResourceServer(facilitatorClient)
   .register(
     X402_NETWORK,
     new ExactEvmScheme()
+  )
+  .registerExtension(
+    bazaarResourceServerExtension
   );
 
 app.use(
@@ -47,17 +54,76 @@ app.use(
             payTo: X402_PAY_TO
           }
         ],
-        description: "Parse a cancellation or refund policy into structured data."
+
+        description:
+          "Turn cancellation, refund, booking and no-show policies into structured decision data for AI agents.",
+
+        extensions: {
+          ...declareDiscoveryExtension({
+            bodyType: "json",
+
+            input: {
+              policy_text:
+                "Free cancellation until 6pm on 24 September. After this time, the first night will be charged."
+            },
+
+            inputSchema: {
+              type: "object",
+              properties: {
+                policy_text: {
+                  type: "string",
+                  description:
+                    "Cancellation, refund, booking, or no-show policy text to analyse."
+                }
+              },
+              required: ["policy_text"]
+            },
+
+            output: {
+              example: {
+                service: "CancelCheck",
+                version: VERSION,
+                refundable: true,
+                free_cancellation: true,
+
+                deadline: {
+                  date: "24 September",
+                  time: "18:00",
+                  hours_before: null
+                },
+
+                late_cancellation: {
+                  type: "first_night",
+                  amount: null,
+                  currency: null,
+                  percentage: null,
+                  basis: null
+                },
+
+                no_show: {
+                  type: null
+                },
+
+                confidence: 0.9,
+
+                original_policy:
+                  "Free cancellation until 6pm on 24 September. After this time, the first night will be charged."
+              }
+            }
+          })
+        }
       }
     },
     resourceServer
   )
 );
+
 app.get("/", (req, res) => {
   res.json({
     service: "CancelCheck",
     version: VERSION,
-    description: "Cancellation and refund policy intelligence for AI agents.",
+    description:
+      "Cancellation and refund policy intelligence for AI agents.",
     endpoints: {
       health: "GET /health",
       parse: "POST /parse",
@@ -67,7 +133,9 @@ app.get("/", (req, res) => {
 });
 
 app.get("/openapi.json", (req, res) => {
-  res.sendFile("openapi.json", { root: __dirname });
+  res.sendFile("openapi.json", {
+    root: __dirname
+  });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -83,6 +151,7 @@ app.get("/health", (req, res) => {
 app.post("/parse", (req, res) => {
   try {
     const result = parsePolicy(req.body.policy_text);
+
     res.json(result);
   } catch (error) {
     res.status(400).json({
