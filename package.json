@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "Transaction safety and cancellation policy intelligence for AI agents",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+"scripts": {
+  "start": "node server.js",
+  "test": "node test.js",
+  "test:hard": "node hard-test.js"
+},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ant1Tay/cancelcheck.git"
