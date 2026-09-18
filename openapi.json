@@ -3,11 +3,12 @@
   "info": {
     "title": "CancelCheck API",
     "version": "0.4.1",
-    "description": "Parses cancellation and refund policies into structured data for AI agents and applications."
+    "description": "Cancellation and refund policy intelligence for AI agents. Convert raw booking, cancellation, refund and no-show policies into structured decision data."
   },
   "servers": [
     {
-      "url": "https://cancelcheck.onrender.com"
+      "url": "https://cancelcheck.onrender.com",
+      "description": "Production"
     }
   ],
   "paths": {
@@ -24,24 +25,18 @@
     },
     "/parse": {
       "post": {
-        "summary": "Parse a cancellation policy",
-        "description": "Extracts refundability, cancellation deadlines, cancellation charges, and no-show terms from cancellation policy text.",
+        "summary": "Analyse a cancellation or refund policy",
+        "description": "Use CancelCheck when an agent needs to determine whether a booking is refundable, when free cancellation ends, what late-cancellation charges may apply, and what happens in a no-show. Send the original policy text exactly as provided by the merchant or reservation provider.",
         "operationId": "parseCancellationPolicy",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "policy_text": {
-                    "type": "string",
-                    "description": "The cancellation or refund policy text to analyse."
-                  }
-                },
-                "required": [
-                  "policy_text"
-                ]
+                "$ref": "#/components/schemas/ParseRequest"
+              },
+              "example": {
+                "policy_text": "Free cancellation until 6pm on 24 September. After this time, the first night will be charged."
               }
             }
           }
@@ -52,108 +47,183 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "service": {
-                      "type": "string"
-                    },
-                    "version": {
-                      "type": "string"
-                    },
-                    "refundable": {
-                      "type": [
-                        "boolean",
-                        "null"
-                      ]
-                    },
-                    "free_cancellation": {
-                      "type": [
-                        "boolean",
-                        "null"
-                      ]
-                    },
-                    "deadline": {
-                      "type": "object",
-                      "properties": {
-                        "date": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "time": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "hours_before": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        }
-                      }
-                    },
-                    "late_cancellation": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "amount": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "currency": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "percentage": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "basis": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      }
-                    },
-                    "no_show": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      }
-                    },
-                    "confidence": {
-                      "type": "number"
-                    },
-                    "original_policy": {
-                      "type": "string"
-                    }
-                  }
+                  "$ref": "#/components/schemas/ParseResponse"
+                },
+                "example": {
+                  "service": "CancelCheck",
+                  "version": "0.4.1",
+                  "refundable": true,
+                  "free_cancellation": true,
+                  "deadline": {
+                    "date": "24 September",
+                    "time": "18:00",
+                    "hours_before": null
+                  },
+                  "late_cancellation": {
+                    "type": "first_night",
+                    "amount": null,
+                    "currency": null,
+                    "percentage": null,
+                    "basis": null
+                  },
+                  "no_show": {
+                    "type": null
+                  },
+                  "confidence": 0.9,
+                  "original_policy": "Free cancellation until 6pm on 24 September. After this time, the first night will be charged."
                 }
               }
             }
           },
           "400": {
             "description": "Invalid request"
+          },
+          "402": {
+            "description": "Payment required. This endpoint is protected by x402 and requires a 0.001 USDC payment on Base Sepolia."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ParseRequest": {
+        "type": "object",
+        "required": [
+          "policy_text"
+        ],
+        "properties": {
+          "policy_text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Raw cancellation, refund, booking or no-show policy text to analyse."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ParseResponse": {
+        "type": "object",
+        "required": [
+          "service",
+          "version",
+          "refundable",
+          "free_cancellation",
+          "deadline",
+          "late_cancellation",
+          "no_show",
+          "confidence",
+          "original_policy"
+        ],
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "CancelCheck"
+          },
+          "version": {
+            "type": "string"
+          },
+          "refundable": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the policy indicates that the booking or transaction is refundable."
+          },
+          "free_cancellation": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether cancellation is currently described as free of charge."
+          },
+          "deadline": {
+            "$ref": "#/components/schemas/Deadline"
+          },
+          "late_cancellation": {
+            "$ref": "#/components/schemas/LateCancellation"
+          },
+          "no_show": {
+            "$ref": "#/components/schemas/NoShow"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Parser confidence from 0 to 1."
+          },
+          "original_policy": {
+            "type": "string",
+            "description": "The original policy text supplied to CancelCheck."
+          }
+        }
+      },
+      "Deadline": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "time": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hours_before": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "LateCancellation": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Type of late-cancellation penalty, such as first_night."
+          },
+          "amount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "percentage": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "basis": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "NoShow": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       }
