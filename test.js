@@ -1,3 +1,5 @@
+const { parsePolicy } = require("./parser");
+
 const tests = [
   {
     name: "Hotel - first night",
@@ -72,25 +74,14 @@ function getValue(object, path) {
   }, object);
 }
 
-async function runTests() {
-  console.log("\nCancelCheck v0.3 Tests\n");
+function runTests() {
+  console.log("\nCancelCheck Parser Tests\n");
 
   let passed = 0;
 
   for (const test of tests) {
     try {
-      const response = await fetch("http://localhost:3000/parse", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          policy_text: test.policy_text
-        })
-      });
-
-      const result = await response.json();
-
+      const result = parsePolicy(test.policy_text);
       const failures = [];
 
       for (const [path, expectedValue] of Object.entries(test.expected)) {

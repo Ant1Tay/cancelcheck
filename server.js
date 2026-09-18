@@ -2,11 +2,13 @@ const express = require("express");
 const { parsePolicy, VERSION } = require("./parser");
 
 const { paymentMiddleware } = require("@x402/express");
-const {
-  HTTPFacilitatorClient,
-  x402ResourceServer
-} = require("@x402/core/server");
+const { x402ResourceServer } = require("@x402/core/server");
 const { ExactEvmScheme } = require("@x402/evm/exact/server");
+
+const {
+  createCdpFacilitatorClient
+} = require("@coinbase/cdp-sdk/x402");
+
 const {
   bazaarResourceServerExtension,
   declareDiscoveryExtension
@@ -15,14 +17,10 @@ const {
 const app = express();
 
 app.set("trust proxy", 1);
-
 app.use(express.json());
 
-const X402_FACILITATOR_URL =
-  process.env.X402_FACILITATOR_URL || "https://x402.org/facilitator";
-
 const X402_NETWORK =
-  process.env.X402_NETWORK || "eip155:84532";
+  process.env.X402_NETWORK || "eip155:8453";
 
 const X402_PRICE =
   process.env.X402_PRICE || "$0.001";
@@ -31,9 +29,10 @@ const X402_PAY_TO =
   process.env.X402_PAY_TO ||
   "0xe9C913235AD4d81699A715Cf3e4cae4Dbb0F2D79";
 
-const facilitatorClient = new HTTPFacilitatorClient({
-  url: X402_FACILITATOR_URL
-});
+// CDP authenticated facilitator.
+// Reads CDP_API_KEY_ID and CDP_API_KEY_SECRET
+// automatically from environment variables.
+const facilitatorClient = createCdpFacilitatorClient();
 
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register(
